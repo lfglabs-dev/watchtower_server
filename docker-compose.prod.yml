@@ -2,12 +2,14 @@ version: "3"
 
 services:
   watch_tower_server:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     command: ./target/release/watch-tower
     ports:
       - 8000:8000
+    volumes:
+      - ./db_saves:/db_saves
     deploy:
       resources:
         limits:
