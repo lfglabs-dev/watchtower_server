@@ -10,3 +10,4 @@ services:
       - 8000:8000
     volumes:
       - ./db_saves:/app/db_saves
+      - ./config.json:/app/config.json
