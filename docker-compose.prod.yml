@@ -9,7 +9,7 @@ services:
     ports:
       - 8000:8000
     volumes:
-      - ./db_saves:/db_saves
+      - ./db_saves:/app/db_saves
     deploy:
       resources:
         limits:
