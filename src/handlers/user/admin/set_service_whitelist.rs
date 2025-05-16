@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use axum::{extract::State, response::IntoResponse, Json};
-use mongodb::{
-    bson::{doc, Document},
-    Collection,
-};
+use mongodb::bson::{doc, Document};
 use serde::Deserialize;
 
 use crate::{
@@ -16,18 +13,15 @@ use crate::{
 };
 
 #[derive(Deserialize)]
-pub struct EditDbInput {
+pub struct SetServiceWhitelistInput {
     token: String,
-    db_id: String,
-    name: String,
-    custom_name: String,
-    connection_string: String,
-    hourly_save: Option<bool>,
+    new_whitelist: Vec<String>,
+    service_id: String,
 }
 
-pub async fn edit_db_handler(
+pub async fn set_service_whitelist_handler(
     State(app_state): State<Arc<AppState>>,
-    Json(body): Json<EditDbInput>,
+    Json(body): Json<SetServiceWhitelistInput>,
 ) -> impl IntoResponse {
     let token = body.token;
     let valid = check_auth_token(app_state.clone(), token.clone());
@@ -60,26 +54,30 @@ pub async fn edit_db_handler(
         return Json(json_response);
     }
 
-    let db_id = mongodb::bson::oid::ObjectId::parse_str(&body.db_id).unwrap();
-    let db_name = body.name;
-    let connection_string = body.connection_string;
-    let custom_name = body.custom_name;
+    let service_id = mongodb::bson::oid::ObjectId::parse_str(&body.service_id).unwrap();
+    let new_whitelist = body.new_whitelist;
 
-    let db = &app_state.db;
-    let collection: Collection<Document> = db.collection("databases");
-    collection
+    let db = app_state.db.clone();
+
+    let collection: mongodb::Collection<Document> = db.collection("services");
+    let res = collection
         .update_one(
-            doc! {"_id": db_id.clone()},
-            doc! {"$set": {
-                "name": db_name.clone(),
-                "connection_string": connection_string.clone(),
-                "custom_name": custom_name.clone(),
-                "hourly_save": body.hourly_save.unwrap_or(false),
-            }},
+            doc! { "_id": service_id },
+            doc! { "$set": { "whitelist": new_whitelist } },
             None,
         )
         .await
         .unwrap();
+
+    if res.modified_count == 0 {
+        let json_response = serde_json::json!({
+            "status": "error",
+            "message": "Service not found",
+            "error_code": "service_not_found"
+        });
+
+        return Json(json_response);
+    }
     return Json(serde_json::json!({
         "status": "success",
     }));

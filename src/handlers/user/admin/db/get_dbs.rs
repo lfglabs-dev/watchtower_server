@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{extract::State, response::IntoResponse, Json};
 use mongodb::{
-    bson::{doc, Document},
+    bson::{doc, Document, RawBsonRef},
     Collection,
 };
 
@@ -107,6 +107,12 @@ async fn get_dbs(
         } else {
             doc.get("custom_name").unwrap().unwrap().as_str().unwrap()
         };
+        let hourly_save = doc
+            .get("hourly_save")
+            .unwrap()
+            .unwrap_or(RawBsonRef::Null)
+            .as_bool()
+            .unwrap_or(false);
 
         let database = structs::Database {
             _id: Some(_id.to_hex()),
@@ -114,6 +120,7 @@ async fn get_dbs(
             connection_string: connection_string.to_string(),
             status: status.to_string(),
             collections: collections_result,
+            hourly_save: hourly_save,
             last_save: if last_save.is_some() {
                 Some(
                     last_save

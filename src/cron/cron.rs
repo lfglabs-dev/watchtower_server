@@ -8,11 +8,13 @@ use crate::{
 pub async fn start_cron(app_state: Arc<AppState>) -> () {
     println!("🚀 Starting cron");
 
-    let daily = tokio::time::Duration::from_secs(60 * 60 * 24);
+    let hour = tokio::time::Duration::from_secs(60 * 60);
+    let mut batch_index = 0;
 
     let cron = tokio::spawn(async move {
         loop {
-            if save_dbs(app_state.clone()).await.is_err() {
+            let hourly_only = batch_index % 24 != 0;
+            if save_dbs(app_state.clone(), hourly_only).await.is_err() {
                 println!("❌ Failed to run db cron");
             } else {
                 println!("✅ Ran db cron");
@@ -22,7 +24,8 @@ pub async fn start_cron(app_state: Arc<AppState>) -> () {
             } else {
                 println!("✅ Cleaned dbs saves");
             };
-            tokio::time::sleep(daily).await;
+            tokio::time::sleep(hour).await;
+            batch_index += 1;
         }
     });
 

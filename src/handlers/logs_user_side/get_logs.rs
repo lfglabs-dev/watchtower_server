@@ -4,7 +4,14 @@ use axum::{extract::State, response::IntoResponse, Json};
 use mongodb::bson::{doc, Document};
 use serde::Deserialize;
 
-use crate::{structs, utils::check_auth_token::check_auth_token, AppState};
+use crate::{
+    structs,
+    utils::{
+        check_auth_token::check_auth_token, get_token_data::get_token_data,
+        has_permission::has_permission,
+    },
+    AppState,
+};
 
 #[derive(Deserialize)]
 pub struct GetLogsInput {
@@ -31,6 +38,8 @@ pub async fn get_logs_handler(
 
         return Json(json_response);
     }
+    let token_data = get_token_data(app_state.clone(), token);
+    let user_id = token_data.user_id;
     let app_ids = body.target_apps;
     let types = body.target_types;
     let page_id = body.page_id;
@@ -43,6 +52,7 @@ pub async fn get_logs_handler(
         page_id,
         page_size,
         page_amount,
+        user_id,
     )
     .await
     .unwrap();
@@ -65,9 +75,38 @@ async fn get_logs(
     page_id: u64,
     page_size: u64,
     page_amount: u64,
+    user_id: String,
 ) -> Result<(u64, Vec<structs::Log>), mongodb::error::Error> {
+    let mut app_ids = app_ids;
     let db = &app_state.db;
     let collection: mongodb::Collection<Document> = db.collection("logs");
+
+    let is_admin = has_permission(
+        user_id.clone(),
+        "administrator".to_string(),
+        app_state.clone(),
+    )
+    .await;
+    if !is_admin {
+        let services_collection: mongodb::Collection<Document> = db.collection("services");
+        let mut services_cursor = services_collection
+            .find(doc! { "whitelist": { "$in": vec![user_id] } }, None)
+            .await?;
+        let mut target_apps: Vec<String> = Vec::new();
+        while services_cursor.advance().await? {
+            let doc = services_cursor.current();
+            let _id = doc.get("_id").unwrap().unwrap().as_object_id().unwrap();
+            if !app_ids
+                .clone()
+                .expect("app_ids not defined")
+                .contains(&_id.to_string())
+            {
+                continue;
+            }
+            target_apps.push(_id.to_string());
+        }
+        app_ids = Some(target_apps);
+    }
 
     // Do not get logs with deleted field
     let skip: u64 = page_size * page_id;
