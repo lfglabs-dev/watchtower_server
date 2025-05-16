@@ -128,6 +128,10 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             "/download_save",
             get(handlers::user::admin::db::download_save::download_save_handler),
         )
+        .route(
+            "/set_service_whitelist",
+            post(handlers::user::admin::set_service_whitelist::set_service_whitelist_handler),
+        )
 
         // Logs user side
         .route(
