@@ -22,6 +22,7 @@ pub struct EditDbInput {
     name: String,
     custom_name: String,
     connection_string: String,
+    hourly_save: Option<bool>,
 }
 
 pub async fn edit_db_handler(
@@ -73,6 +74,7 @@ pub async fn edit_db_handler(
                 "name": db_name.clone(),
                 "connection_string": connection_string.clone(),
                 "custom_name": custom_name.clone(),
+                "hourly_save": body.hourly_save.unwrap_or(false),
             }},
             None,
         )

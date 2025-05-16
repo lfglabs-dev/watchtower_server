@@ -63,6 +63,7 @@ pub struct Database {
     pub last_save: Option<i64>,
     pub message: String,
     pub custom_name: String,
+    pub hourly_save: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
